@@ -1,6 +1,6 @@
 const express = require("express")
 const bodyParser = require("body-parser")
-const { Pool } = require('pg')
+const { createClient } = require('@supabase/supabase-js');
 
 require('dotenv').config()
 
@@ -14,29 +14,49 @@ app.use(bodyParser.urlencoded({extended: false}))
 app.use(bodyParser.json())
 
 //connection pool
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-})
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-//connect to DB
-pool.connect((err, client, done) => {
-  if (err) {
-    console.error('Erro ao conectar ao banco de dados:', err);
-    throw err;
+
+app.get('/', async (req, res) => {
+  try {
+    // Exemplo de consulta no Supabase
+    const { data, error } = await supabase
+      .from('user')
+      .select('*');
+
+    if (error) {
+      console.error('Erro ao consultar o Supabase:', error);
+      throw error;
+    }
+
+    console.log('Dados do Supabase:', data);
+    res.send("Teste");
+  } catch (error) {
+    console.error('Erro interno do servidor:', error);
+    res.status(500).send('Erro interno do servidor');
   }
-  console.log('Conectado ao banco de dados');
+});
+app.post('/teste', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('user')
+      .insert({})
+      .select()
 
-  // Ao terminar uma consulta, libera a conexão de volta para o pool
-  done();
+    if(error){
+      console.log(error)
+      return res.status(201).json({ success: false, objeto: data});
+    }
+    return res.status(201).json({ success: true, objeto: data});
+  } catch (error) {
+    console.error('Erro interno do servidor:', error);
+    return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
+  }
 });
 
-app.get('', (req, res) => {
-  res.send("Teste")
-})
+
 
 app.listen(port, ()=>{
   console.log(`Aplicação está rodando na porta ${port}`)
